@@ -5,12 +5,28 @@ import urllib2
 import json
 import os
 import sys
+import md5
 import string
+import random
 
 # Set cookie
 cookie_opener = urllib2.build_opener()
-cookie_opener.addheaders.append(('Cookie', 'appver=1.7.1'))
+cookie_opener.addheaders.append(('Cookie', 'appver=2.0.2'))
+cookie_opener.addheaders.append(('Referer', 'http://music.163.com'))
 urllib2.install_opener(cookie_opener)
+
+def encrypted_id(id):
+    byte1 = bytearray('3go8&$8*3*3h0k(2)2')
+    byte2 = bytearray(id)
+    byte1_len = len(byte1)
+    for i in xrange(len(byte2)):
+        byte2[i] = byte2[i]^byte1[i%byte1_len]
+    m = md5.new()
+    m.update(byte2)
+    result = m.digest().encode('base64')[:-1]
+    result = result.replace('/', '_')
+    result = result.replace('+', '-')
+    return result
 
 def get_playlist(playlist_id):
     url = 'http://music.163.com/api/playlist/detail?id=%s' % playlist_id
@@ -19,14 +35,15 @@ def get_playlist(playlist_id):
     return data['result']
 
 def save_track(track, folder, position):
-    name = track['name']
+    name = track['hMusic']['name']
 
     if position < 10:
         pos = "0%d" % position
     else:
         pos = "%d" % position
 
-    fname = pos + ' ' + name + '.mp3'
+    #fname = pos + ' ' + name + track['hMusic']['extension']
+    fname = name + '.' + track['hMusic']['extension']
     fname = string.replace(fname, '/', '_')
     fpath = os.path.normpath(os.path.join(folder, fname))
 
@@ -35,6 +52,8 @@ def save_track(track, folder, position):
 
     print "Downloading", fpath, "..."
 
+    dfsId = str(track['hMusic']['dfsId'])
+    url = 'http://m%d.music.126.net/%s/%s.%s' % (random.randrange(1, 3), encrypted_id(dfsId), dfsId, track['hMusic']['extension'])
     resp = urllib2.urlopen(track['mp3Url'])
     data = resp.read()
     resp.close()
